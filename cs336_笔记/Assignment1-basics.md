@@ -3,28 +3,28 @@
 
 ### 你将实现：
 
-1 BPE 分词器 (Byte-pair encoding tokenizer)：（第 2 节） 
-2 Transformer 语言模型 (LM)：（第 3 节） 
-3 交叉熵损失函数与 AdamW 优化器：(第 4 节) 
-4 训练循环：支持模型和优化器状态的序列化与加载（保存与读取）:（第 5 节） 
+1 BPE 分词器 (Byte-pair encoding tokenizer)：第 2 节   
+2 Transformer 语言模型 (LM)：第 3 节  
+3 交叉熵损失函数与 AdamW 优化器：第 4 节  
+4 训练循环：支持模型和优化器状态的序列化与加载（保存与读取）：第 5 节  
 
 
 ### 你将完成如下任务：
 
-1 在 TinyStories 数据集上训练一个 BPE 分词器。 
-2 对数据集运行训练好的分词器，将其转换为整数 ID 序列。 
-3 在 TinyStories 数据集上训练 Transformer 语言模型。 
-4 使用训练好的模型生成样本并评估困惑度 (Perplexity)。 
-5 在 OpenWebText 数据集上训练模型，并将达到的困惑度结果提交到排行榜。 
+1 在 TinyStories 数据集上训练一个 BPE 分词器。   
+2 对数据集运行训练好的分词器，将其转换为整数 ID 序列。   
+3 在 TinyStories 数据集上训练 Transformer 语言模型。   
+4 使用训练好的模型生成样本并评估困惑度 (Perplexity)。  
+5 在 OpenWebText 数据集上训练模型，并将达到的困惑度结果提交到排行榜。  
  
 
 ### 允许使用的工具：
 
 课程希望你从0开始搭组件，所以你不得使用`torch.nn`、`torch.nn.functional` 或 `torch.optim` 中的任何定义，除了：
 
-1 `torch.nn.Parameter` 
-2 `torch.nn` 中的容器类（`Module`, `ModuleList`, `Sequential` 等） 
-3 `torch.optim.Optimizer` 基类 
+1 `torch.nn.Parameter`   
+2 `torch.nn` 中的容器类（`Module`, `ModuleList`, `Sequential` 等）   
+3 `torch.optim.Optimizer` 基类   
 
 
 ### 关于 AI 工具：
