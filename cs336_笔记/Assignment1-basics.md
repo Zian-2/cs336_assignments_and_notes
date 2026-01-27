@@ -1,3 +1,49 @@
+
+
+# Setup
+
+## 环境配置：
+
+按照https://github.com/stanford-cs336/assignment1-basics/tree/main中README的流程配置uv。
+
+## 下载数据：
+
+下载 TinyStories data 和 subsample of OpenWebText：
+课程原生使用wget；windows下推荐使用curl。命令：
+```powershell
+# 创建并进入数据目录
+mkdir -p data
+cd data
+
+# 下载 TinyStories
+curl.exe -L -o TinyStoriesV2-GPT4-train.txt https://huggingface.co/datasets/roneneldan/TinyStories/resolve/main/TinyStoriesV2-GPT4-train.txt
+curl.exe -L -o TinyStoriesV2-GPT4-valid.txt https://huggingface.co/datasets/roneneldan/TinyStories/resolve/main/TinyStoriesV2-GPT4-valid.txt
+
+# 下载 OpenWebText (OWT)
+curl.exe -L -o owt_train.txt.gz https://huggingface.co/datasets/stanford-cs336/owt-sample/resolve/main/owt_train.txt.gz
+curl.exe -L -o owt_valid.txt.gz https://huggingface.co/datasets/stanford-cs336/owt-sample/resolve/main/owt_valid.txt.gz
+
+# 解压 .gz 文件
+# Windows 10/11 自带 tar.exe，可以用来替代 gunzip
+tar.exe -xvzf owt_train.txt.gz
+tar.exe -xvzf owt_valid.txt.gz
+
+cd ..
+```
+
+如果解压不成功，考虑使用python原生解压。
+先输入python进入交互模式，然后：
+```python
+import gzip
+import shutil
+
+with gzip.open('owt_valid.txt.gz', 'rb') as f_in:
+    with open('owt_valid.txt', 'wb') as f_out:
+        shutil.copyfileobj(f_in, f_out)
+
+```
+
+<br> <br><br> 
 # 1 作业总览
 你将构建训练标准 Transformer 语言模型（LM）所需的所有组件，并训练一些模型。
 
@@ -45,7 +91,7 @@
 
 
 
-
+<br> <br> <br>
 # 2 BPE(Byte-Pair Encoding)分词器
 
 ## 2.1 unicode标准
@@ -71,7 +117,7 @@ python中，有ord()和chr()函数：
 (c)当该字符出现在文本中时会发生什么？
 在 Python 字符串内部它可以正常存在并拼接，但在将其打印到终端或与底层 C 语言编写的程序交互时，它可能会被当做文本结束符而导致后面的内容被截断，或者干脆显示为一个空白区域。
 
-
+<br> <br>
 
 ## 2.2 unicode编码
 
@@ -139,7 +185,7 @@ def decode_utf8_bytes_to_str_wrong(bytestring: bytes):
 如`b'\xff\xff'`。
 原因：任何以 `11111xxx` 开头的字节都没有对应的 5 字节或更长的有效模板，无法解码为任何 Unicode 字符。
 
-
+<br> <br>
 ## 2.3 子词分词方案（subword tokenization）
 
 将词语拆成byte序列之后，仍然不能逐个byte拆分来看作为token：这会导致序列变得极长，训练的step变长，计算量也增大（如transformer计算复杂度与序列长度成正比）；同时更长的序列也导致信息密度被稀释，网络寻找token间的关系变得更困难。
@@ -148,7 +194,7 @@ def decode_utf8_bytes_to_str_wrong(bytestring: bytes):
 
 为了做这样的工作，Sennrich et al. (2016) 提出使用byte-pair encoding (BPE; Gage, 1994)。作为一种subword tokenization，它简单地基于出现频率，将经常出现的byte pair合并(merge)成一个未被使用的索引。基于BPE的subword tokenizer被称为BPE tokenizer。
 
-
+<br> <br>
 ## 2.4 训练BPE分词器
 
 ### 1 初始化 vocabulary
@@ -224,7 +270,7 @@ newest newest newest newest newest newest
 
 在此语境下，‘newest’ 将被分词为[ne, west]。
 
-
+<br> <br>
 ## 2.5 实验：训练BPE
 
 我们接下来再TinyStories数据集上训练一个BPE。你可以在Section1里找到它的下载方式。在开始之前，推荐你先大概看一眼里面都是什么内容。
