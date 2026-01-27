@@ -20,7 +20,7 @@
 
 ### 允许使用的工具：
 
-课程希望你从0开始搭组件，所以你不得使用`torch.nn`、`torch.nn.functional` 或 `torch.optim` 中的任何定义，除了：
+课程希望你从0开始搭组件，所以不得使用`torch.nn`、`torch.nn.functional` 或 `torch.optim` 中的任何定义，除了：
 
 1 `torch.nn.Parameter`   
 2 `torch.nn` 中的容器类（`Module`, `ModuleList`, `Sequential` 等）   
@@ -46,7 +46,7 @@
 
 
 
-# 2 BPE(Byte-Pair Encoding，字节对编码)分词器
+# 2 BPE(Byte-Pair Encoding)分词器
 
 ## 2.1 unicode标准
 
@@ -98,7 +98,7 @@ hello! こんにちは!
 我们将整数的codepoints转换成了一个byte序列，它们会更易于处理。例如，因为任何文本实质上都被转化为介于 $0-255$ 之间的整数序列，只要词表包含了这 256 个基础字节，就不需要担心训练和搭建的过程中词表外（OOV）词汇。
 
 
-### 课程文档外的补充：UTF-8编码规则
+### 课程文档外的补充：UTF-8字节序列对应规则
 
 字节数1： 
 对应Unicode编码范围：U+0000 至 U+007F 或 0~127 (7 bits) 
@@ -144,13 +144,89 @@ def decode_utf8_bytes_to_str_wrong(bytestring: bytes):
 
 将词语拆成byte序列之后，仍然不能逐个byte拆分来看作为token：这会导致序列变得极长，训练的step变长，计算量也增大（如transformer计算复杂度与序列长度成正比）；同时更长的序列也导致信息密度被稀释，网络寻找token间的关系变得更困难。
 
-而subword tokenization就是指代一个折中的方案。它选择用一个更大的词汇表(vocabulary)来trade-off更短的序列。比如说，如果‘the’经常出现，我们就可以给它单独分配一个条目(entry)，词汇表维度+1，但把3个token缩短成了1个。
+而subword tokenization就是指代这样一个折中的方案。它选择用一个更大的词汇表(vocabulary)来trade-off更短的序列。比如说，如果‘the’经常出现，我们就可以给它单独分配一个条目(entry)，词汇表维度+1，但把3个token缩短成了1个。
 
 为了做这样的工作，Sennrich et al. (2016) 提出使用byte-pair encoding (BPE; Gage, 1994)。作为一种subword tokenization，它简单地基于出现频率，将经常出现的byte pair合并(merge)成一个未被使用的索引。基于BPE的subword tokenizer被称为BPE tokenizer。
 
 
 ## 2.4 训练BPE分词器
 
+### 1 初始化 vocabulary
+初始化的vocabulary是从byte到整数ID的映射。因此，vocabulary的大小为256。
+
+### 2 预分词（Pre-tokenization)
+
+理论上，有了词汇表我们就可以开始进行上述的合并（merge）工作了。然而，有两个关键的问题：
+i 每次合并的时候，都需要从头到尾过一遍语料库。这在计算上是很昂贵的。
+ii 直接合并会导致出现一些新的token，它们只有标点符号的区别（比如”dog.“和”dog!“），它们会拥有完全不同的ID，即使它们在语义上是完全相同的。
+
+为了解决上述问题，我们进行对语料库的预分词(pre-tokenize)，先把语料库切成单词。这是如何省下计算成本的？举个例子，当我们已经计数了'text'的出现次数（比如说10次），当我们需要计数'te'的出现次数时，就可以直接+=10，从而避免了每次遇到同一个单词时重复的计算。
+
+早期分词方案包括直接通过空格进行切分（s.split(""))，但显然这不能解决上述提到的问题2。
+
+于是，我们将使用的时一个基于正则表达式(regex)的分词器 (used by GPT-2; Radford et al., 2019)，可以在github.com/openai/tiktoken/pull/234/files中找到。如下：
+
+```python
+>>> PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+```
+这里的五个部分分别处理：缩写后缀（'ll, 've, 't , ‘s等）；连续字母（单词）；连续数字；连续标点符号；连续纯空格。
+
+例子如下：
+```python
+>>> # requires `regex` package 
+>>> import regex as re 
+>>>  re.findall(PAT, "some text that i'll pre-tokenize") 
+['some', ' text', ' that', ' i', "'ll", ' pre', '-', 'tokenize']
+```
+
+实际使用中，用findall内存容易溢出，建议使用re.finditer这一迭代计算的函数。
 
 
+### 3 计算BPE合并&处理特殊token
 
+现在我们可以开始按照前述方法计算合并了。只需要注意两点：
+i  不能跨越预分词边界合并。`['some', 'text']`，那么 `e`（来自 some）和 `t`（来自 text）永远不会被统计在一起。
+ii 多个byte pair出现频率并列第一时，选择字典序最大（Lexicographically greater）的那一对。("A", "B"), ("A", "C"), ("B", "ZZ"), 和 ("BA", "A")频率相同时，在 ASCII 中 "BA" > "B" > "A"），因此 `max` 会选出 `('BA', 'A')`。
+iii 有一些特殊token不能和其他合并，比如<|endoftext|>。它不应该被分成几个零碎的token，因此我们会给它安排一个固定的tokenID。
+
+### 一个训练的具体例子：
+例如我们现在有如下corpus：
+```python
+low low low low 
+low lower lower widest widest widest 
+newest newest newest newest newest newest
+```
+, 且vocabulary里已经放好了<|endoftext|>这一special token。
+
+#### 1 初始化vocabulary：
+一个special token和256个byte value。
+
+#### 2 Pre-tokenization: 
+为了简化，我们仅使用用空格分隔，最终得到频率表：{low: 5, lower: 2, widest: 3, newest: 6}。为容易处理，将它写成dict[tuple[bytes], int]的格式，如{(l,o,w): 5 …}。
+
+#### 3 合并：
+数出byte pair的出现频率：
+```python
+{lo: 7, ow: 7, we: 8, er: 2, wi: 3, id: 3, de: 3, es: 9, st: 9, ne: 6, ew: 6}
+```
+('es') 和 ('st')并列，我们就取字典序更大的('st')。
+于是表格变为：{(l,o,w): 5, (l,o,w,e,r): 2, (w,i,d,e,st): 3, (n,e,w,e,st): 6}.
+
+如是循环，进行6次merge，可以得到新产生的vocabulary：
+```python
+['s t', 'e st', 'o w', 'l ow', 'w est', 'n e']
+```
+
+于是新的词汇表变为：
+```python
+[<|endoftext|>, [...256 BYTE CHARS], st, est, ow, low, west, ne]
+```
+
+在此语境下，‘newest’ 将被分词为[ne, west]。
+
+
+## 2.5 实验：训练BPE
+
+我们接下来再TinyStories数据集上训练一个BPE。你可以在Section1里找到它的下载方式。在开始之前，推荐你先大概看一眼里面都是什么内容。
+
+#### 1 
