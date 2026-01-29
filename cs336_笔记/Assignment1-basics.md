@@ -4,12 +4,25 @@
 
 ## 环境配置：
 
-按照https://github.com/stanford-cs336/assignment1-basics/tree/main中README的流程配置uv。
+按照https://github.com/stanford-cs336/assignment1-basics/tree/main 中README的说明配置并测试uv。  
 
-## 下载数据：
+如果你在Windows下，uv run pytest 时会出现问题，因为你没有办法import resource。(实际上，不推荐使用windows完成作业，后续还会出现其他问题……)  
+尝试如下操作：  
+打开\assignment1-basics\tests\test_tokenizer.py， 删除第5行的import resource，修改为：  
 
-下载 TinyStories data 和 subsample of OpenWebText：
-课程原生使用wget；windows下推荐使用curl。命令：
+```python
+try:
+    import resource
+except ImportError:
+    resource = None
+```
+
+然后重新uv run pytest。  
+
+## 数据下载：
+
+下载 TinyStories data 和 subsample of OpenWebText：  
+课程原生使用的是wget； windows下，推荐使用curl。试着使用如下命令：
 ```powershell
 # 创建并进入数据目录
 mkdir -p data
@@ -19,7 +32,7 @@ cd data
 curl.exe -L -o TinyStoriesV2-GPT4-train.txt https://huggingface.co/datasets/roneneldan/TinyStories/resolve/main/TinyStoriesV2-GPT4-train.txt
 curl.exe -L -o TinyStoriesV2-GPT4-valid.txt https://huggingface.co/datasets/roneneldan/TinyStories/resolve/main/TinyStoriesV2-GPT4-valid.txt
 
-# 下载 OpenWebText (OWT)
+# 下载 OpenWebText
 curl.exe -L -o owt_train.txt.gz https://huggingface.co/datasets/stanford-cs336/owt-sample/resolve/main/owt_train.txt.gz
 curl.exe -L -o owt_valid.txt.gz https://huggingface.co/datasets/stanford-cs336/owt-sample/resolve/main/owt_valid.txt.gz
 
@@ -31,7 +44,7 @@ tar.exe -xvzf owt_valid.txt.gz
 cd ..
 ```
 
-如果解压不成功，考虑使用python原生解压。
+如果解压不成功，考虑使用python原生解压。  
 先输入python进入交互模式，然后：
 ```python
 import gzip
@@ -45,7 +58,7 @@ with gzip.open('owt_valid.txt.gz', 'rb') as f_in:
 
 <br> <br><br> 
 # 1 作业总览
-你将构建训练标准 Transformer 语言模型（LM）所需的所有组件，并训练一些模型。
+你将构建训练标准 Transformer LM 所需的所有组件，并训练一些模型。
 
 ### 你将实现：
 
@@ -108,13 +121,13 @@ python中，有ord()和chr()函数：
 
 
 ### Problem (unicode1):
-(a)`chr(0)` 返回的是什么字符？
+(a)`chr(0)` 返回的是什么字符？  
 `chr(0)` 返回的是 Unicode 编码为 0 的字符，即空字符（Null Character）。
 
-(b) 它的字符串表示形式 (`__repr__()`) 与打印形式有何不同？
+(b) 它的字符串表示形式 (`__repr__()`) 与打印形式有何不同？  
 在 Python 中，其字符串表示形式（`__repr__()`）会显示为转义序列 `'\x00'`，而打印该字符（`print()`）时通常是不可见的，在某些终端里可能显示为空格。
 
-(c)当该字符出现在文本中时会发生什么？
+(c)当该字符出现在文本中时会发生什么？  
 在 Python 字符串内部它可以正常存在并拼接，但在将其打印到终端或与底层 C 语言编写的程序交互时，它可能会被当做文本结束符而导致后面的内容被截断，或者干脆显示为一个空白区域。
 
 <br> <br>
@@ -168,10 +181,10 @@ hello! こんにちは!
 
 ### Problem (unicode2):
 
-(a) 为什么 Tokenizer 训练更偏好 UTF-8而不是UTF-16, UTF-32？
+(a) 为什么 Tokenizer 训练更偏好 UTF-8而不是UTF-16, UTF-32？  
 UTF-8 是变长编码，能够将常用的 ASCII 字符保持为单字节，避免了 UTF-16/32 在处理英文或代码时产生大量冗余零字节。
 
-(b) 错误的解码函数分析：
+(b) 错误的解码函数分析：  
 ```python
 def decode_utf8_bytes_to_str_wrong(bytestring: bytes): 
 	return "".join([bytes([b]).decode("utf-8") for b in bytestring]) 
@@ -181,8 +194,8 @@ def decode_utf8_bytes_to_str_wrong(bytestring: bytes):
 错误输入：如`b'\xe4\xb8\xad'` （汉字“中”的编码字节流）
 因为UTF-8 中的中文字符或复杂符号是由 2 到 4 个字节共同组成的，单独解码其中任何一个字节都会因不符合 UTF-8 规范而报错（或产生乱码）。
 
-(c)给出无法解码的字节：
-如`b'\xff\xff'`。
+(c)给出无法解码的字节：  
+如`b'\xff\xff'`。  
 原因：任何以 `11111xxx` 开头的字节都没有对应的 5 字节或更长的有效模板，无法解码为任何 Unicode 字符。
 
 <br> <br>
@@ -203,8 +216,8 @@ def decode_utf8_bytes_to_str_wrong(bytestring: bytes):
 ### 2 预分词（Pre-tokenization)
 
 理论上，有了词汇表我们就可以开始进行上述的合并（merge）工作了。然而，有两个关键的问题：
-i 每次合并的时候，都需要从头到尾过一遍语料库。这在计算上是很昂贵的。
-ii 直接合并会导致出现一些新的token，它们只有标点符号的区别（比如”dog.“和”dog!“），它们会拥有完全不同的ID，即使它们在语义上是完全相同的。
+i 每次合并的时候，都需要从头到尾过一遍语料库。这在计算上是很昂贵的。  
+ii 直接合并会导致出现一些新的token，它们只有标点符号的区别（比如”dog.“和”dog!“），它们会拥有完全不同的ID，即使它们在语义上是完全相同的。  
 
 为了解决上述问题，我们进行对语料库的预分词(pre-tokenize)，先把语料库切成单词。这是如何省下计算成本的？举个例子，当我们已经计数了'text'的出现次数（比如说10次），当我们需要计数'te'的出现次数时，就可以直接+=10，从而避免了每次遇到同一个单词时重复的计算。
 
@@ -231,9 +244,9 @@ ii 直接合并会导致出现一些新的token，它们只有标点符号的区
 ### 3 计算BPE合并&处理特殊token
 
 现在我们可以开始按照前述方法计算合并了。只需要注意两点：
-i  不能跨越预分词边界合并。`['some', 'text']`，那么 `e`（来自 some）和 `t`（来自 text）永远不会被统计在一起。
+i  不能跨越预分词边界合并。`['some', 'text']`，那么 `e`（来自 some）和 `t`（来自 text）永远不会被统计在一起。  
 ii 多个byte pair出现频率并列第一时，选择字典序最大（Lexicographically greater）的那一对。("A", "B"), ("A", "C"), ("B", "ZZ"), 和 ("BA", "A")频率相同时，在 ASCII 中 "BA" > "B" > "A"），因此 `max` 会选出 `('BA', 'A')`。
-iii 有一些特殊token不能和其他合并，比如<|endoftext|>。它不应该被分成几个零碎的token，因此我们会给它安排一个固定的tokenID。
+iii 有一些特殊token不能和其他合并，比如<|endoftext|>。它不应该被分成几个零碎的token，因此我们会给它安排一个固定的tokenID。  
 
 ### 一个训练的具体例子：
 例如我们现在有如下corpus：
@@ -251,7 +264,7 @@ newest newest newest newest newest newest
 为了简化，我们仅使用用空格分隔，最终得到频率表：{low: 5, lower: 2, widest: 3, newest: 6}。为容易处理，将它写成dict[tuple[bytes], int]的格式，如{(l,o,w): 5 …}。
 
 #### 3 合并：
-数出byte pair的出现频率：
+数出上述例子中byte pair的出现频率：
 ```python
 {lo: 7, ow: 7, we: 8, er: 2, wi: 3, id: 3, de: 3, es: 9, st: 9, ne: 6, ew: 6}
 ```
@@ -275,4 +288,55 @@ newest newest newest newest newest newest
 
 我们接下来再TinyStories数据集上训练一个BPE。你可以在Section1里找到它的下载方式。在开始之前，推荐你先大概看一眼里面都是什么内容。
 
-#### 1 
+#### 1 并行处理预分词
+
+训练过程中，预分词会是一个主要的瓶颈。你可以使用内置库`multiprocessing`并行化你的代码。  
+你可以逐字使用以下链接中的入门代码来获取分块边界，然后使用这些边界将工作分配到各个进程：  
+[https://github.com/stanford-cs336/assignment1-basics/blob/main/cs336_basics/pretokenization_example.py](https://github.com/stanford-cs336/assignment1-basics/blob/main/cs336_basics/pretokenization_example.py)
+阅读此代码，你会发现它实现的是确保每个分块边界都切割在special_token之前。
+
+#### 2 预分词前，剔除特殊token不进行处理
+
+用"|" .join(special_tokens)来re.split以移除<|endoftext|>
+
+#### 3 优化合并
+
+naive BPE training（逐个合并，每次合并从头遍历一次）计算量太大。考虑到每次合并改变的计数只有这个合并前后的计数，我们可以动态处理合并，即每次合并只将前后的计数-1。如合并‘text’中的‘ex’，只需要将te和xt的计数-1，而不需要合并完之后再从头数一遍。
+
+#### Downscaling 提示
+
+1 cProfile和scalene等分析工具可以分析你的实现中的瓶颈，于是你可以专注于分析这些瓶颈。
+2 与其直接现在TInyStories的training set上训练，你可以先将validation set作为‘调试数据(debug dataset)'训练。后者只有22K个文档，前者有2.12M个文档。
+
+
+#### Problem (train_bpe): BPE训练
+
+1 编写你的tokenizer，然后在adapter.py中import，最后uv run pytest tests/test_train_bpe.py。
+需要注意，如果出现类似” Extra items in the left set: b'\r\n\r'  “的报错，这是因为linux文本会被windows自动将\n更改为\r\n。这也很好解决，直接处理一步.replace(b"\r\n", b"\n")即可。    
+
+笔者的个人实现见cs336_basics/tokenizer.py ， 对其的说明见
+
+2 按照文章的建议，You should use profiling tools like **`cProfile`** or **`scalene`** to identify the bottlenecks in your implementation.  个人的实现，在主函数内部添加如下代码：
+```python
+def train_bpe(input_path, vocab_size, special_tokens, num_chunks = 1000):
+
+    import cProfile, pstats
+    profiler = cProfile.Profile()
+    profiler.enable() # 开始分析
+
+  
+##############################################
+#  你的完整的分词进程
+##############################################
+
+    profiler.disable() # 结束分析
+    stats = pstats.Stats(profiler).sort_stats('cumulative')
+    stats.print_stats(15) # 打印耗时最长的 15 个函数
+
+    return tokenizer
+```
+
+添加分析之后运行时长增加是正常的。注意在表格中只需要关注tottime（函数内部的运行时长，不包括调用的外部函数）。
+
+
+
