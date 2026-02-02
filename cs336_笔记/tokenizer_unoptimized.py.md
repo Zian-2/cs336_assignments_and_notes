@@ -1,7 +1,8 @@
 
-本文包含对cs336/Assignment1-basics/2.5/Problem (train_bpe): BPE Tokenizer Training一问的解答及说明，但是部分内容（主要在merge的迭代部分）没有完全优化。
+本文包含对cs336/Assignment1-basics/2.5/Problem (train_bpe): BPE Tokenizer Training一问大概框架的解答及说明，部分内容没有完全优化。
 
-完整且优化过的代码见https://github.com/Zian-2/cs336_assignments_and_notes/blob/main/assignment1-basics/cs336_basics/tokenizer.py ，  框架与本文相同；主要优化了merge_step中的选词逻辑，在2GB的TinyStoriesV2-GPT4-train.txt上完整训练可达到40秒以内。
+本文面向对python不熟悉的同学，如果你只需要找一个参考直接移步完整且优化过的代码：https://github.com/Zian-2/cs336_assignments_and_notes/blob/main/assignment1-basics/cs336_basics/tokenizer.py
+
 
 
 ```python
