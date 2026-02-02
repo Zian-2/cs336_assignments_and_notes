@@ -9,9 +9,10 @@
 
 按照https://github.com/stanford-cs336/assignment1-basics/tree/main 中README的说明配置并测试uv。  
 
-如果你在Windows下，uv run pytest 时会出现问题，因为你没有办法import resource。(实际上，不推荐在windows上完成作业，后续还会出现其他问题……)  
-尝试如下操作：  
-打开\assignment1-basics\tests\test_tokenizer.py， 删除第5行的import resource，修改为：  
+如果你在Windows下，uv run pytest 时会出现问题，因为你没有办法import resource。  
+
+进行如下操作：  
+打开\assignment1-basics\tests\test_tokenizer.py， 删除第5行的import resource，或修改：  
 
 ```python
 try:
@@ -628,6 +629,3 @@ linux虚拟机下测试时间5.99s。只要逻辑不要太离谱（比如直接�
 (b) 压缩率在3.3左右。可见tiny的词表相对于owt的内容还是有比较大局限。
 (c) 在Tiny_valid上验证，吞吐量: 5.5023 MB/s。预估分词 Pile (825GB): 42.65 小时。
 (d)  1 无符号这一点和tokenID是相同的   2 数值范围到65536，比较适配词表大小
-
-
---字数统计等
