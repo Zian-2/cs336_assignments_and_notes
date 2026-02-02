@@ -13,6 +13,8 @@ from torch import Tensor
 from cs336_basics.tokenizer import BPEtokenizer  #导入编写的tokenizer和train_bpe
 from cs336_basics.tokenizer import train_bpe
 
+from cs336_basics.tokenizer import Tokenizer
+
 
 def run_linear(
     d_in: int,
@@ -563,14 +565,8 @@ def get_tokenizer(
     Returns:
         A BPE tokenizer that uses the provided vocab, merges, and special tokens.
     """
-    tokenizer = BPEtokenizer()
-
-    tokenizer.vocab = vocab
-    tokenizer.merges = merges
-    tokenizer.special_tokens = special_tokens if special_tokens is not None else []
-    
+    tokenizer = Tokenizer(vocab, merges, special_tokens)
     return tokenizer
-
 
 def run_train_bpe(
     input_path: str | os.PathLike,
@@ -604,3 +600,13 @@ def run_train_bpe(
     tokenizer = train_bpe(input_path, vocab_size, special_tokens, **kwargs)
 
     return tokenizer.vocab, tokenizer.merges
+
+
+
+def get_tokenizer_from_vocab_merges_path(
+    vocab_path: str | os.PathLike,
+    merges_path: str | os.PathLike,
+    special_tokens: list[str] | None = None,
+) -> Any:
+    # 调用你 Tokenizer 类里的加载方法
+    return Tokenizer.from_files(vocab_path, merges_path, special_tokens)
