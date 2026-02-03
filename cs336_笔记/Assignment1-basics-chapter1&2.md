@@ -614,7 +614,7 @@ tests/test_tokenizer.py::test_encode_memory_usage XFAIL (Tokenizer.e...)
 linux虚拟机下测试时间5.99s。只要逻辑不要太离谱（比如直接遍历merge）基本时间上不会有太大问题。
 
 
-### 2.7 实验  
+## 2.7 实验  
 
 (a) 从 TinyStories 和 OpenWebText 中各随机抽取 10 份文档。使用你之前训练好的 TinyStories 分词器（词表大小 10K）和 OpenWebText 分词器（词表大小 32K），将这些抽样的文档编码为整数 ID。每个分词器的压缩比（字节/Token）是多少？
 
