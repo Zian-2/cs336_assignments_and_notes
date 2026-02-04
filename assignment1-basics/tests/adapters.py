@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from typing import IO, Any, BinaryIO
 import numpy.typing as npt
 import torch
+import torch.nn as nn
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 from cs336_basics.tokenizer import BPEtokenizer  #导入编写的tokenizer和train_bpe
@@ -12,6 +13,7 @@ from cs336_basics.tokenizer import Tokenizer
 from cs336_basics.transformer_model import Linear
 from cs336_basics.transformer_model import Embedding
 from cs336_basics.transformer_model import RMSNorm
+from cs336_basics.transformer_model import SwiGLU
 
 
 def run_linear(
@@ -92,7 +94,16 @@ def run_swiglu(
     # swiglu.w1.weight.data = w1_weight
     # swiglu.w2.weight.data = w2_weight
     # swiglu.w3.weight.data = w3_weight
-    raise NotImplementedError
+    model = SwiGLU(d_model)
+    model.w1 = Linear(d_model, d_ff)
+    model.w2 = Linear(d_ff, d_model)
+    model.w3 = Linear(d_model, d_ff)
+    
+    model.w1.W = nn.Parameter(w1_weight)
+    model.w2.W = nn.Parameter(w2_weight)
+    model.w3.W = nn.Parameter(w3_weight)
+
+    return model(in_features)
 
 
 def run_scaled_dot_product_attention(

@@ -1,5 +1,7 @@
 本章带你编写Transformer。
 
+本文有一些markdown无法被github原生渲染器渲染，你可以选择跳过这些公式或把此.md文件尝试在其他软件中打开。
+
 本课程对transformer相关的算法本身既不全面也不细节。如果读者对相关算法并不熟悉，笔者推荐去选择性地完成cs231n中和神经网络和transformer相关的作业；内含充足的scaffolding和数学推导内容（主要指反向传播的推导），能够在带你速通相关算法的同时，让你对这些神经网络的整个过程有更良好的认识。
 如果你熟悉相关算法，chapter3要比chapter2简单得多。基本上你可以在数个小时内完成所有作业。
 # 3  Transformer 架构
@@ -306,16 +308,17 @@ def forward(self, x: torch.Tensor) -> torch.Tensor
 
 要测试你的实现，请实现位于 [adapters.run_rmsnorm] 的测试适配器。然后，运行 uv run pytest -k test_rmsnorm。
 
+##### Answer：
+见transformer_model.RMSNorm和adapter.run_rmsnorm。
+
 ### 3.5.2 逐位置前馈网络
 
 在原始的 Transformer 论文中（Vaswani et al. [2017] 第 3.3 节），Transformer 前馈网络由两个线性变换组成，中间夹有一个 ReLU 激活函数（ReLU(x) = max(0, x)）。内部前馈层的维度通常是输入维度的 4 倍。
 
-然而，与这种原始设计相比，现代语言模型倾向于引入两个主要的改进：它们使用另一种激活函数并采用门控机制。具体来说，我们将实现 Llama 3 [Grattafiori et al., 2024] 和 Qwen 2.5 [Yang et al., 2024] 等大语言模型中所采用的 SwiGLU 激活函数，它结合了 SiLU（通常被称为 Swish）激活函数和一种称为门控线性单元（GLU）的门控机制。遵循自 PaLM [Chowdhery et al., 2022] 和 LLaMA [Touvron et al., 2023] 以来大多数现代大语言模型的做法，我们也省略了线性层中有时会使用的偏置项。
+然而，与这种原始设计相比，现代语言模型倾向于引入两个主要的改进：它们使用另一种激活函数并采用门控机制（gating mechanism）。具体来说，我们将实现 Llama 3 [Grattafiori et al., 2024] 和 Qwen 2.5 [Yang et al., 2024] 等大语言模型中所采用的 SwiGLU 激活函数，它结合了 SiLU（通常被称为 Swish）激活函数和一种称为门控线性单元（GLU, Gated Linear Unit）的门控机制。遵循 PaLM [Chowdhery et al., 2022] 和 LLaMA [Touvron et al., 2023] 以来大多数现代大语言模型的做法，我们也省略了线性层中有时会使用的偏置项。
 
 SiLU 或 Swish 激活函数 [Hendrycks and Gimpel, 2016, Elfwing et al., 2017] 定义如下：
-
 $$SiLU(x) = x \cdot \sigma(x) = \frac{x}{1 + e^{-x}} \quad (5)$$
-
 如图 3 所示，SiLU 激活函数与 ReLU 激活函数相似，但在零点处是平滑的。
 
 门控线性单元（GLUs）最初由 Dauphin et al. [2017] 定义为经过 sigmoid 函数的线性变换与另一个线性变换的逐元素乘积：
@@ -330,17 +333,20 @@ $$FFN(x) = SwiGLU(x, W_1, W_2, W_3) = W_2(SiLU(W_1x) \odot W_3x), \quad (7)$$
 
 其中 $x \in \mathbb{R}^{d_{model}}$，$W_1, W_3 \in \mathbb{R}^{d_{ff} \times d_{model}}$，$W_2 \in \mathbb{R}^{d_{model} \times d_{ff}}$，并且按照惯例，$d_{ff} = \frac{8}{3}d_{model}$。
 
-Shazeer [2020] 首先提出了将 SiLU/Swish 激活与 GLU 结合，并进行实验证明 SwiGLU 在语言建模任务上的表现优于 ReLU 和 SiLU（无门控）等基准模型。在本次作业的后续部分，你将对比 SwiGLU 和 SiLU。尽管我们为这些组件提到了一些启发式论据（且相关论文提供了更多支持证据），但保持实证观点也是有益的；Shazeer 论文中有一句如今著名的名言：
+Shazeer [2020] 首先提出了将 SiLU/Swish 激活与 GLU 结合，并进行实验证明 SwiGLU 在语言建模任务上的表现优于 ReLU 和 SiLU（无门控）等基准模型。在本次作业的后续部分，你将对比 SwiGLU 和 SiLU。尽管我们为这些组件提到了一些启发式论据（且相关论文提供了更多支持证据），但保持经验式的观念也是有益的：Shazeer 论文中有一句如今著名的名言——
 
 我们无法解释为什么这些架构似乎有效；我们将它们的成功与其他所有事情一样，归功于神圣的仁慈。
 
 #### Problem (positionwise_feedforward): 实现逐位置前馈网络 (2 分)
 
-交付成果：实现由 SiLU 激活函数和 GLU 组成的 SwiGLU 前馈网络。
+实现由 SiLU 激活函数和 GLU 组成的 SwiGLU 前馈网络。
 
-注意：在这种特定情况下，为了数值稳定性，你可以放心在实现中使用 torch.sigmoid。
+注意：在这种特定情况下，为了数值稳定性，你可以在实现中使用 torch.sigmoid。
 
-在你的实现中，你应该将 dff 设置为大约 $\frac{8}{3} \times d_{model}$，同时确保内部前馈层的维度是 64 的倍数，以便充分利用你的硬件。要根据我们提供的测试来验证你的实现，你需要完成位于 [adapters.run_swiglu] 的测试适配器。然后，运行 uv run pytest -k test_swiglu 来测试你的实现。
+在你的实现中，如前所述，你应该将 $d_{ff}$ 设置为大约 $\frac{8}{3} \times d_{model}$，同时确保内部前馈层的维度是 64 的倍数，以便充分利用你的硬件。要根据我们提供的测试来验证你的实现，你需要完成位于 [adapters.run_swiglu] 的测试适配器。然后，运行 uv run pytest -k test_swiglu 来测试你的实现。
+
+##### Answer：
+见transformer_model.SwiGLU和adapter.run_swiglu。
 
 ### 3.5.3 相对位置嵌入
 
@@ -399,6 +405,6 @@ $$softmax(v)_i = \frac{\exp(v_i)}{\sum_{j=1}^n \exp(v_j)}. \quad (10)$$
 
 #### Problem (softmax): 实现 softmax (1 分)
 
-交付成果：编写一个对张量应用 softmax 操作的函数。你的函数应该接受两个参数：一个张量和一个维度 i，并将 softmax 应用于输入张量的第 i 维。输出张量应具有与输入张量相同的形状，但其第 i 维现在将拥有归一化的概率分布。使用从第 i 维所有元素中减去第 i 维最大值的技巧，以避免数值稳定性问题。
+编写一个对张量应用 softmax 操作的函数。你的函数应该接受两个参数：一个张量和一个维度 i，并将 softmax 应用于输入张量的第 i 维。输出张量应具有与输入张量相同的形状，但其第 i 维现在将拥有归一化的概率分布。使用从第 i 维所有元素中减去第 i 维最大值的技巧，以避免数值稳定性问题。
 
 要测试你的实现，请完成 [adapters.run_softmax] 并确保其通过 uv run pytest -k test_softmax_matches_pytorch。

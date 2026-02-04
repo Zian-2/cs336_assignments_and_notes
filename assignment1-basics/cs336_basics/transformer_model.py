@@ -45,3 +45,22 @@ class RMSNorm(nn.Module):
         x_normed = (x_f32 / rms) * self.g
         
         return x_normed.to(in_dtype)
+
+class SwiGLU(nn.Module):
+    def __init__(self, d_model, device=None, dtype=None):
+        super().__init__()
+        d_ff = int(8 * d_model / 3)
+        d_ff = 64 * ((d_ff + 63) // 64)
+        
+        self.w1 = Linear(d_model, d_ff, device=device, dtype=dtype)
+        self.w2 = Linear(d_ff, d_model, device=device, dtype=dtype)
+        self.w3 = Linear(d_model, d_ff, device=device, dtype=dtype)
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x1 = self.w1(x)
+        x3 = self.w3(x)
+
+        SiLU = x1* torch.sigmoid(x1)
+        ffn = self.w2(SiLU * x3)
+
+        return ffn
