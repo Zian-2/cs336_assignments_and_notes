@@ -12,8 +12,9 @@
 ## 3.1 Transformer 语言模型（LM）
 
 给定一个 token ID 序列，Transformer 语言模型使用输入嵌入（input embedding，通过它将离散的整数ID映射到高维连续空间，转换成稠密向量），将嵌入后的 token 通过 `num_layers` 个 Transformer 块，然后应用一个学习到的线性投影（“输出嵌入”或“LM head”）来产生预测的下一 token 的未归一化的得分（logits）。
-示意图请参见图 1。
-![|489x559](./images/image.png)
+示意图请参见图 1。  
+
+![|324x370](./images/image.png)
 
 ### 3.1.1 Token 嵌入
 
@@ -256,8 +257,9 @@ def forward(self, token_ids: torch.Tensor) -> torch.Tensor
 每个 Transformer 块有两个子层：多头自注意力机制和位置级前馈网络 (Vaswani et al., 2017, section 3.1)。
 
 在原始的 Transformer 论文中，模型在两个子层周围各使用了一个残差连接，随后进行层归一化（layer normalization）。这种架构通常被称为“post-norm” Transformer，因为层归一化被应用于子层的输出。  
-然而，多项研究发现，将层归一化从每个子层的输出移动到每个子层的输入（并在最后一个 Transformer 块之后增加一个额外的层归一化）可以提高 Transformer 训练的稳定性 [Nguyen and Salazar, 2019, Xiong et al., 2020] —— 参见图 2 了解这种“pre-norm” Transformer 块的视觉表示。随后，每个 Transformer 块子层的输出通过残差连接加到子层输入上 (Vaswani et al., 2017, section 5.4)。pre-norm 的一种直觉是，从输入嵌入到 Transformer 的最终输出之间存在一条没有经过任何归一化的清晰“残差流”，据称这可以改善梯度流动。这种 pre-norm Transformer 现在已成为当今语言模型（例如 GPT-3, LLaMA, PaLM 等）使用的标准，因此我们将实现这一变体。我们将逐一介绍 pre-norm Transformer 块的每个组件，并按顺序实现它们。
-![|489x663](./images/image-2.png)
+然而，多项研究发现，将层归一化从每个子层的输出移动到每个子层的输入（并在最后一个 Transformer 块之后增加一个额外的层归一化）可以提高 Transformer 训练的稳定性 [Nguyen and Salazar, 2019, Xiong et al., 2020] —— 参见图 2 了解这种“pre-norm” Transformer 块的视觉表示。随后，每个 Transformer 块子层的输出通过残差连接加到子层输入上 (Vaswani et al., 2017, section 5.4)。pre-norm 的一种直觉是，从输入嵌入到 Transformer 的最终输出之间存在一条没有经过任何归一化的清晰“残差流”，据称这可以改善梯度流动。这种 pre-norm Transformer 现在已成为当今语言模型（例如 GPT-3, LLaMA, PaLM 等）使用的标准，因此我们将实现这一变体。我们将逐一介绍 pre-norm Transformer 块的每个组件，并按顺序实现它们。  
+
+![|324x438](./images/image-2.png)
 ### 3.5.1 均方根层归一化 (Layer Normalization)
 
 Vaswani et al. [2017] 的原始 Transformer 实现使用层归一化 [Ba et al., 2016] 来归一化激活值。参考 Touvron et al. [2023]，我们将使用均方根层归一化 (RMSNorm; Zhang and Sennrich, 2019, equation 4) 进行层归一化。给定一个激活值向量 $a \in \mathbb{R}^{d_{model}}$，RMSNorm 将按如下方式缩放每个激活值 $a_i$：
