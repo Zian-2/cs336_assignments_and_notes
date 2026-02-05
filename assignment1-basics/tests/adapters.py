@@ -5,15 +5,23 @@ from typing import IO, Any, BinaryIO
 import numpy.typing as npt
 import torch
 import torch.nn as nn
+from einops import rearrange, einsum
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
-from cs336_basics.tokenizer import BPEtokenizer  #导入编写的tokenizer和train_bpe
-from cs336_basics.tokenizer import train_bpe
-from cs336_basics.tokenizer import Tokenizer
-from cs336_basics.transformer_model import Linear
-from cs336_basics.transformer_model import Embedding
-from cs336_basics.transformer_model import RMSNorm
-from cs336_basics.transformer_model import SwiGLU
+from cs336_basics.tokenizer import BPEtokenizer, train_bpe, Tokenizer
+from cs336_basics.transformer_model import (
+    Linear, 
+    Embedding, 
+    RMSNorm, 
+    SwiGLU, 
+    RotaryPositionalEmbedding, 
+    softmax,
+    scaled_dot_product_attention,
+    CausalMultiHeadSelfAttention,
+    TransformerBlock,
+    TransformerLM
+)
+
 
 
 def run_linear(
@@ -124,7 +132,7 @@ def run_scaled_dot_product_attention(
     Returns:
         Float[Tensor, " ... queries d_v"]: Output of SDPA
     """
-    raise NotImplementedError
+    return scaled_dot_product_attention(Q, K, V, mask = mask)
 
 
 def run_multihead_self_attention(
@@ -158,7 +166,18 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+
+    model = CausalMultiHeadSelfAttention(d_model, num_heads)
+    
+    with torch.no_grad():
+        model.q_proj.weight.copy_(q_proj_weight)
+        model.k_proj.weight.copy_(k_proj_weight)
+        model.v_proj.weight.copy_(v_proj_weight)
+        model.o_proj.weight.copy_(o_proj_weight)
+    
+    return model(in_features)
+
+
 
 
 def run_multihead_self_attention_with_rope(
@@ -198,7 +217,15 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    model = CausalMultiHeadSelfAttention(d_model, num_heads)
+    
+    with torch.no_grad():
+        model.q_proj.weight.copy_(q_proj_weight)
+        model.k_proj.weight.copy_(k_proj_weight)
+        model.v_proj.weight.copy_(v_proj_weight)
+        model.o_proj.weight.copy_(o_proj_weight)
+    
+    return model(in_features, rope_theta=theta, token_positions=token_positions)
 
 
 def run_rope(
@@ -220,7 +247,14 @@ def run_rope(
     Returns:
         Float[Tensor, " ... sequence_length d_k"]: Tensor with RoPEd input.
     """
-    raise NotImplementedError
+    module = RotaryPositionalEmbedding(
+        theta=theta, 
+        d_k=d_k, 
+        max_seq_len=max_seq_len, 
+        device=in_query_or_key.device
+    )
+    module.to(in_query_or_key.dtype)
+    return module(in_query_or_key, token_positions)
 
 
 def run_transformer_block(
@@ -293,7 +327,31 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    block = TransformerBlock(d_model, num_heads, d_ff)
+    
+
+    with torch.no_grad():
+
+        block.attn.q_proj.weight.copy_(weights["attn.q_proj.weight"])
+        block.attn.k_proj.weight.copy_(weights["attn.k_proj.weight"])
+        block.attn.v_proj.weight.copy_(weights["attn.v_proj.weight"])
+        block.attn.o_proj.weight.copy_(weights["attn.output_proj.weight"])
+        
+        block.ln1.g.copy_(weights["ln1.weight"]) 
+        block.ln2.g.copy_(weights["ln2.weight"])
+        
+
+        block.ffn.w1.W.copy_(weights["ffn.w1.weight"])
+        block.ffn.w2.W.copy_(weights["ffn.w2.weight"])
+        block.ffn.w3.W.copy_(weights["ffn.w3.weight"])
+
+
+    seq_len = in_features.shape[1]
+
+    positions = torch.arange(seq_len, device=in_features.device)
+
+
+    return block(in_features, theta=theta, positions=positions)
 
 
 def run_transformer_lm(
@@ -375,7 +433,34 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+
+    model = TransformerLM(vocab_size, context_length, d_model, num_layers, num_heads, d_ff)
+    
+
+    with torch.no_grad():
+
+        model.token_embeddings.W.copy_(weights["token_embeddings.weight"])
+        
+        for i in range(num_layers):
+            layer = model.layers[i]
+            prefix = f"layers.{i}."
+            
+            layer.attn.q_proj.weight.copy_(weights[f"{prefix}attn.q_proj.weight"])
+            layer.attn.k_proj.weight.copy_(weights[f"{prefix}attn.k_proj.weight"])
+            layer.attn.v_proj.weight.copy_(weights[f"{prefix}attn.v_proj.weight"])
+            layer.attn.o_proj.weight.copy_(weights[f"{prefix}attn.output_proj.weight"])
+            
+            layer.ln1.g.copy_(weights[f"{prefix}ln1.weight"])
+            layer.ln2.g.copy_(weights[f"{prefix}ln2.weight"])
+            
+            layer.ffn.w1.W.copy_(weights[f"{prefix}ffn.w1.weight"])
+            layer.ffn.w2.W.copy_(weights[f"{prefix}ffn.w2.weight"])
+            layer.ffn.w3.W.copy_(weights[f"{prefix}ffn.w3.weight"])
+
+        model.ln_final.g.copy_(weights["ln_final.weight"])
+        model.lm_head.W.copy_(weights["lm_head.weight"])
+
+    return model(in_indices, theta=rope_theta)
 
 
 def run_rmsnorm(
@@ -453,7 +538,7 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
         Float[Tensor, "..."]: Tensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    raise NotImplementedError
+    return softmax(in_features, dim=dim)
 
 
 def run_cross_entropy(
@@ -624,5 +709,4 @@ def get_tokenizer_from_vocab_merges_path(
     merges_path: str | os.PathLike,
     special_tokens: list[str] | None = None,
 ) -> Any:
-    # 调用你 Tokenizer 类里的加载方法
     return Tokenizer.from_files(vocab_path, merges_path, special_tokens)
