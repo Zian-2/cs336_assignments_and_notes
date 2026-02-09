@@ -15,17 +15,17 @@ $$\ell(\theta; D) = \frac{1}{|D|m} \sum_{x \in D} \sum_{i=1}^{m} -\log p_\theta(
 
 （注意，Transformer 中的单次前向传递会产生所有 $i = 1, \dots, m$ 的 $p_\theta(x_{i+1} | x_{1:i})$。）
 
-特别地，Transformer 为每个位置 $i$ 计算逻辑值 $o_i \in \mathbb{R}^{\text{vocab\_size}}$，其结果为：
+特别地，Transformer 为每个位置 $i$ 计算逻辑值 $o_{i} \in \mathbb{R}^{\text{vocabsize}}$，其结果为：
 
-$$p(x_{i+1} | x_{1:i}) = \text{softmax}(o_i)[x_{i+1}] = \frac{\exp(o_i[x_{i+1}])}{\sum_{a=1}^{\text{vocab\_size}} \exp(o_i[a])}. \quad (17)$$
+$$p(x_{i+1} | x_{1:i}) = \text{softmax}(o_i)[x_{i+1}] = \frac{\exp(o_i[x_{i+1}])}{\sum_{a=1}^{\text{vocabsize}} \exp(o_i[a])}. \quad (17)$$
 
-交叉熵损失通常是相对于逻辑值向量 $o_i \in \mathbb{R}^{\text{vocab\_size}}$ 和目标 $x_{i+1}$ 定义的。
+交叉熵损失通常是相对于逻辑值向量 $o_{i} \in \mathbb{R}^{\text{vocabsize}}$ 和目标 $x_{i+1}$ 定义的。
 
 实现交叉熵损失需要注意数值(溢出)问题，就像 softmax 的情况一样。
 
 ### Problem (cross_entropy): 实现交叉熵
 
-编写一个计算交叉熵损失的函数，该函数接收预测的逻辑值 ($o_i$) 和目标 ($x_{i+1}$)，并计算交叉熵 $\ell_i = -\log \text{softmax}(o_i)[x_{i+1}]$。你的函数应该处理以下内容：
+编写一个计算交叉熵损失的函数，该函数接收预测的逻辑值 ($o_{i}$) 和目标 ($x_{i+1}$)，并计算交叉熵 $\ell_i = -\log \text{softmax}(o_{i})[x_{i+1}]$。你的函数应该处理以下内容：
 
 • 为了数值稳定性，减去最大的元素。
 
@@ -212,7 +212,7 @@ end for
 
 (b) 为 GPT-2 XL 形状的模型实例化你的答案，得到一个仅依赖于 batch_size 的表达式。在 80GB 内存范围内，你可以使用的最大批次大小是多少？
 
-回答：一个看起来像 $a \cdot \text{batch\_size} + b$ 的数值表达式，以及代表最大批次大小的数字。
+回答：一个看起来像 $a \cdot \text{batchsize} + b$ 的数值表达式，以及代表最大批次大小的数字。
 
 (c) 运行 AdamW 的一个步骤需要多少个 FLOPs？
 
