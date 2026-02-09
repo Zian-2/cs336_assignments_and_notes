@@ -1,18 +1,18 @@
 本章带你编写Transformer，并且最后带你简单算一遍内存和FLOPs，但不包括训练和生成（在4-6章）。
 
-本文少量mathcal相关的markdown无法被github原生渲染器渲染，你可以选择跳过它们或把此.md文件尝试在其他软件中打开。
+本文少量mathcal相关的markdown无法被github原生渲染器渲染，你可以选择跳过它们或把此.md文件尝试在其他软件中打开，或直接移步。
 
 本课程对transformer相关的算法本身既不全面也不清楚。如果读者对相关算法并不熟悉，笔者推荐去选择性地完成cs231n中神经网络和transformer相关的作业；内含充足的scaffolding和数学原理内容（主要包括反向传播的推导），能够在带你速通相关算法的同时，让你对这些神经网络的整个过程有更良好的认识。  
 
 如果你熟悉相关算法，chapter3和接下来的章节要比chapter2简单得多。你大可以vibecode softmax之类你非常熟悉的任务，在数个小时内完成ch.3。  
 
-# 3  Transformer 架构
+# 3  Transformer 
 
 一个语言模型（LM）接受一批整数token ID序列作为输入（即，形状为`(batch_size, sequence_length)` 的 `torch.Tensor`），并返回词表上的（批量）归一化概率分布（即形状为 `(batch_size, sequence_length, vocab_size)` 的 PyTorch 张量），其中预测的分布是针对每个输入 token 的下一个词的（即，对词典里的每一个词得到一个score）。  
 在训练语言模型（training）时，我们使用这些下文预测来计算实际下一个词与预测下一个词之间的交叉熵损失。  （然后通过反向传播减小这些损失）
 在推理过程中利用语言模型生成文本（validation/testing）时，我们取最后一个时间步（即序列中的最后一项）预测的下文概率分布来生成序列中的下一个 token（例如，通过选取概率最高的 token、从分布中采样等），将这个 token 添加到输入序列中，并重复此过程。
 这一部分的作业中，你将从零开始构建这个模型。我们将先从模型的高层描述开始，然后逐步介绍各个组件。
-
+<br> <br> <br>
 ## 3.1 Transformer 语言模型（LM）
 
 给定一个 token ID 序列，Transformer 语言模型使用输入嵌入（input embedding，通过它将离散的整数ID映射到高维连续空间，转换成稠密向量），将嵌入后的 token 通过 `num_layers` 个 Transformer 块，然后应用一个学习到的线性投影（“输出嵌入”或“LM head”）来产生预测的下一 token 的未归一化的得分（logits）。
@@ -29,7 +29,7 @@
 ### 3.1.2 Pre-norm Transformer 块
 
 嵌入之后，激活值由几个结构相同的神经网络处理。一个标准的纯解码器（decoder-only）Transformer 语言模型由 `num_layers` 个相同的层（通常称为 Transformer “块（blocks）”）组成。每个 Transformer 块接收形状为 `(batch_size, sequence_length, d_model)` 的输入，并返回形状为 `(batch_size, sequence_length, d_model)` 的输出。每个块通过自注意力机制（self-attention）聚合整个序列的信息，并通过前馈层（feed-forward layers）对其进行非线性转换。
-
+<br> <br> <br>
 ## 3.2 输出归一化与嵌入
 
 在经过 `num_layers` 个 Transformer 块之后，我们将取最终的激活值并将其转化成词表上的分布。
@@ -37,7 +37,7 @@
 我们将实现“Pre-norm” Transformer 块（详见 §3.5），这额外要求在最后一个 Transformer 块之后使用层归一化（Layer Normalization，详见下文），以确保其输出被正确缩放。
 
 在此归一化之后，我们将使用一个标准的学习线性变换，将 Transformer 块的输出转换为预测的下一 token 的 logits（例如，参见 Radford 等人 [2018] 的公式 2）。
-
+<br> <br> <br>
 ## 3.3 注：批处理、Einsum 与高效计算
 
 在整个 Transformer 中，我们将对许多类似批次的输入执行相同的计算。比如：
@@ -162,7 +162,7 @@ $$y = xW^\top, \quad (1)$$
 $$y = Wx, \quad (2)$$
 
 给定一个行优先矩阵 $W \in \mathbb{R}^{d_{out} \times d_{in}}$ 和列向量 $x \in \mathbb{R}^{d_{in}}$。我们在本次作业的数学记法中将使用列向量，因为这种方式通常更容易理解数学原理。你应该记住，如果你想使用普通的矩阵乘法记法，你必须按照行向量惯例来应用矩阵，因为 PyTorch 使用行优先内存排序。如果你在矩阵操作中使用 einsum，这就不再是一个问题。
-
+<br> <br> <br>
 ## 3.4 基础构建块：线性层与嵌入模块
 
 ### 3.4.1 参数初始化
@@ -257,7 +257,7 @@ def forward(self, token_ids: torch.Tensor) -> torch.Tensor
 
 ##### Answer：
 见transformer_model.Embedding和adapter.run_embedding。
-
+<br> <br> <br>
 ## 3.5 Pre-Norm Transformer 块
 
 每个 Transformer 块有两个子层：多头自注意力机制和位置级前馈网络 (Vaswani et al., 2017, section 3.1)。
@@ -460,7 +460,7 @@ $$MultiHeadSelfAttention(x) = W^O MultiHead(W^Q x, W^K x, W^V x) \quad (14)$$
 ##### Answer：
 见transformer_model.CausalMultiHeadSelfAttention和adapter.run_multihead_self_attention & adapter.run_multihead_self_attention_with_rope 。
 
-
+<br> <br> <br>
 ### 3.6 The Full Transformer LM
 
 让我们开始组装 Transformer 块（回顾图 2 将会有所帮助）。一个 Transformer 块包含两个“子层”，一个用于多头自注意力，另一个用于前馈网络。在每个子层中，我们首先执行 RMSNorm，然后是主要操作（MHA/FF），最后加入残差连接。
@@ -522,15 +522,10 @@ num_layers: int 要使用的 Transformer 块的数量。
 (a) 考虑 GPT-2 XL，它具有以下配置：
 
 vocab_size : 50,257
-
 context_length : 1,024
-
 num_layers : 48
-
 d_model : 1,600
-
 num_heads : 25
-
 d_ff : 6,400
 
 假设我们使用此配置构造了我们的模型。我们的模型将有多少个可训练参数？假设每个参数使用单精度浮点数表示，仅加载此模型需要多少内存？

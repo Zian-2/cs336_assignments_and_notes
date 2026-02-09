@@ -326,7 +326,7 @@ naive BPE training（逐个合并，每次合并从头遍历一次）计算量�
 笔者的个人实现见  
 https://github.com/Zian-2/cs336_assignments_and_notes/blob/main/assignment1-basics/cs336_basics/tokenizer.py  ，    
 本节答案对应截止在#--2.6 Encoding & Decoding--#上方的内容。
-对其的说明参考https://zian-2.github.io/2026/01/21/tokenizer.py/  
+对其的说明参考 https://zian-2.github.io/2026/01/21/tokenizer.py/  
 
 2 按照文章的建议，You should use profiling tools like **`cProfile`** or **`scalene`** to identify the bottlenecks in your implementation.  个人的实现，在主函数内部添加如下代码：
 ```python
