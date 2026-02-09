@@ -224,33 +224,33 @@ end for
 #### Answer：
 
 (a)计算峰值内存
-A. 静态：
-设参数个数N。
-内存里：参数N个，梯度N个，optimizer state2N个(m和v)   
-共4N。
-又，由chapter3最后一问的结尾，有$N \approx vocab\_size \cdot d_{model}+ num\_layers \cdot (12d_{model}^2) + vocab\_size \cdot d_{model}$
-B. 动态：
-1 每层2个ln：$2 \times (B \cdot T \cdot d_{model})$
-2 QKV投影：需要存输入X，即$B \cdot T \cdot d_{model}$。
-3 $Q^\top K$ : 存 Q和K，$2 \times (B \cdot T \cdot d_{model})$。
-4 softmax：梯度(p-y)，只用存p，$B \cdot num\_heads \cdot T \cdot T$。
-5 value的加权和（P* V)：存p（已存）和V：$B \cdot T \cdot d_{model}$。
-6 输出投影：存加权和的结果，$B \cdot T \cdot d_{model}$。
-7 FFN：i 乘W1（W3）用到X，大小$B \cdot T \cdot d_{model}$。ii $Y_{inter} = \text{SiLU}(Y_1) \odot Y_3$ 用到Y1，Y3， $\text{SiLU}(Y_1)$， 大小$3 \times (B \cdot T \cdot d_{ff})$。   iii W2 * $Y_{inter}$ 用到$Y_{inter}$， 大小$B \cdot T \cdot d_{ff}$。
-8 最终ln + 输出嵌入：$2 \cdot (BTd_{model}) = 2BTd_{model}$
-9 交叉熵：存logits，大小$BT \cdot vocab\_size$
+A. 静态：  
+设参数个数N。  
+内存里：参数N个，梯度N个，optimizer state2N个(m和v)     
+共4N。  
+又，由chapter3最后一问的结尾，有  $N \approx vocab\_size \cdot d_{model}+ num\_layers \cdot (12d_{model}^2) + vocab\_size \cdot d_{model}$
+B. 动态：  
+1 每层2个ln：$2 \times (B \cdot T \cdot d_{model})$  
+2 QKV投影：需要存输入X，即$B \cdot T \cdot d_{model}$。  
+3 $Q^\top K$ : 存 Q和K，$2 \times (B \cdot T \cdot d_{model})$。  
+4 softmax：梯度(p-y)，只用存p，$B \cdot num\_heads \cdot T \cdot T$。  
+5 value的加权和（P* V)：存p（已存）和V：$B \cdot T \cdot d_{model}$。  
+6 输出投影：存加权和的结果，$B \cdot T \cdot d_{model}$。  
+7 FFN：i 乘W1（W3）用到X，大小$B \cdot T \cdot d_{model}$。ii $Y_{inter} = \text{SiLU}(Y_1) \odot Y_3$ 用到Y1，Y3， $\text{SiLU}(Y_1)$， 大小$3 \times (B \cdot T \cdot d_{ff})$。   iii W2 * $Y_{inter}$ 用到$Y_{inter}$， 大小$B \cdot T \cdot d_{ff}$。  
+8 最终ln + 输出嵌入：$2 \cdot (BTd_{model}) = 2BTd_{model}$  
+9 交叉熵：存logits，大小$BT \cdot vocab\_size$  
 
-综上，相加，乘4bytes。得到：$Memory_{peak} = 16N + L \cdot (96BTd_{model} + 4BhT^2) + 4BT(2d_{model} + vocab\_size)$ 
+综上，相加，乘4bytes。得到：  $Memory_{peak} = 16N + L \cdot (96BTd_{model} + 4BhT^2) + 4BT(2d_{model} + vocab\_size)$ 
 
-(b) 对于 GPT-2 XL ($d_{model}=1600, L=48, vocab=50257$): $N \approx 2 \cdot (1600 \cdot 50257) + 48 \cdot 16 \cdot 1600^2 \approx 2.12 \times 10^9$。
-静态内存16N = 33.92GB。最终层0.22GB。
-transformer共12.8GB。因此80GB内存下，所求计算式为33.92 + batchsize * 12.8 。 batchsize ≤ [3.6] = 3
+(b) 对于 GPT-2 XL ($d_{model}=1600, L=48, vocab=50257$):   $N \approx 2 \cdot (1600 \cdot 50257) + 48 \cdot 16 \cdot 1600^2 \approx 2.12 \times 10^9$。
+静态内存16N = 33.92GB。最终层0.22GB。  
+transformer共12.8GB。因此80GB内存下，所求计算式为33.92 + batchsize * 12.8 。 batchsize ≤ [3.6] = 3  
 
-(c)  用ch3最后一问的结论，$F_{total} = 4.5 \text{ TFLOPs}$， 总 FLOPs 为 **$13.5 \text{ TFLOPs}$
+(c)  用ch3最后一问的结论，$F_{total} = 4.5 \text{ TFLOPs}$， 总 FLOPs 为 **$13.5 \text{ TFLOPs}$  
 
 (d) $400,000 \text{step} \times 1024 \text{ Batch} \times 13.5 \text{ TFLOPs/step} \approx 5.53 \times 10^{21} \text{ FLOPs}$。
-$5.53 \times 10^{21} \div (9.75 \times 10^{12}) \div 86400 \approx$ 6564 天。
-<br> <br> <br>
+$5.53 \times 10^{21} \div (9.75 \times 10^{12}) \div 86400 \approx$ 6564 天。  
+ <br> <br> <br>
 
 ## 4.4 学习率调度(scheduling)
 
