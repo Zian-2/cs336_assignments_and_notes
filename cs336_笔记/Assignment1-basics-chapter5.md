@@ -1,4 +1,4 @@
-# 4 Training a Transformer
+# 5 Training loop
 
 我们现在已经有了预处理数据（通过分词器）和模型（Transformer）的步骤。剩下的工作是构建支持训练的所有代码。这由以下部分组成：
 
