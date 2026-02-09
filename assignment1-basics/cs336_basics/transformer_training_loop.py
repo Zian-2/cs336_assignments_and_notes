@@ -2,8 +2,6 @@ import os
 import torch
 import numpy as np
 import argparse
-
-# 导入你提供的两个模块
 from transformer_training import (
     AdamW, 
     lr_cosine_schedule, 

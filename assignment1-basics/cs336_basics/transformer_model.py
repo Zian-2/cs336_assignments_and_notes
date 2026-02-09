@@ -89,8 +89,8 @@ class RotaryPositionalEmbedding(nn.Module):
 
         x_even = x[...,0::2]
         x_odd = x[..., 1::2]
-        x_new_even = x_even * self.cos - x_odd * self.sin
-        x_new_odd = x_even * self.sin + x_odd * self.cos
+        x_new_even = x_even * cos - x_odd * sin
+        x_new_odd = x_even * sin + x_odd * cos
         
         return (torch.stack([x_new_even, x_new_odd], dim=-1)).flatten(-2)
     
