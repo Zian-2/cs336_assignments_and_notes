@@ -2,15 +2,14 @@ import os
 import json
 import psutil
 import cProfile
-import pstats
 import time
-from .tokenizer import train_bpe
+from tokenizer import train_bpe
 
 def main():
     # 路径配置
-    input_path = "../data/owt_valid_cleaned.txt"
-    vocab_size = 32000 
-    special_tokens = ["\n", "<|endoftext|>"] 
+    input_path = "../../data/owt_train_500mb.txt"
+    vocab_size = 50257 
+    special_tokens = ["\n", "<|endoftext|>"]  
 
     process = psutil.Process(os.getpid())
 
@@ -38,10 +37,6 @@ def main():
     print("性能分析报告 (Top 20 Functions):")
 
 
-    # 打印最耗时的函数
-    stats = pstats.Stats(profiler).sort_stats('tottime')
-    stats.print_stats(20) 
-    print("="*50 + "\n")
 
     # 训练统计
     print(f"训练完成，耗时: {end_real_time - start_real_time:.2f} 秒")
@@ -57,10 +52,8 @@ def main():
     print(f"最长 Token 内容: '{longest_token_bytes.decode('utf-8', errors='replace')}'")
     print(f"最长 Token 字节长度: {len(longest_token_bytes)}")
 
-    # 保存 profile 原始数据到文件，可以用 snakeviz 等工具可视化
-    stats.dump_stats("bpe_training_profile_owt.prof")
 
-    output_dir = "run_bpe_train_on_openwebtext_output"
+    output_dir = "run_bpe_train_on_owt_output"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 

@@ -3,12 +3,12 @@ from collections import Counter
 from collections import defaultdict
 import regex as re
 import multiprocessing
-from .pretokenization_example import find_chunk_boundaries
+from pretokenization_example import find_chunk_boundaries
 
 import time
 
 
-# 预编译正则表达式
+# 预编译正则
 PAT = re.compile(r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""")
 
 
@@ -95,6 +95,7 @@ class BPEtokenizer:
             )        
 
         # 并行处理
+        print("start multiprocessing")
         num_cpu = multiprocessing.cpu_count()
         tasks = []
         for start, end in zip(boundaries[:-1], boundaries[1:]):
@@ -107,7 +108,8 @@ class BPEtokenizer:
         final_counts = Counter()
         for res in results:
             final_counts.update(res)
-
+        
+        print("finish multiprocessing")
         return dict(final_counts)
     
 
@@ -221,18 +223,23 @@ class BPEtokenizer:
         # 迭代 merge_step
 
         # 单词计数
+        print(f"start word counting")
         word_counts = self.counting_init(input_path, special_tokens, num_chunks = 1000)
+        print(f"finish word counting")
 
         # 在最前面加上special_tokens 
         actual_merge_steps = vocab_size - 256 - len(special_tokens)
 
         # 数pair（第一次）
+        print(f"start merging")
         self.pair_count(word_counts)
 
         # 迭代merge
         for i in range(actual_merge_steps):
             new_id = 256 + i
             word_counts = self.merge_step(word_counts, new_id)
+            if i % 10 == 0:
+                print(f"iteration {i}")
 
         offset = len(special_tokens)
         new_vocab = {}

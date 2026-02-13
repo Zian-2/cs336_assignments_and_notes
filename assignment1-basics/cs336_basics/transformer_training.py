@@ -11,12 +11,14 @@ from einops import rearrange, einsum
 
 def cross_entropy(inputs, targets):
 
-    inputs_stable = inputs - torch.max(inputs, dim = -1, keepdim = True)[0]
-    range = torch.arange(inputs.shape[0])
-    entropy = - inputs_stable[range, targets] + torch.log(torch.sum(torch.exp(inputs_stable), dim = -1)) 
-    l = torch.mean(entropy)
+    # inputs_stable = inputs - torch.max(inputs, dim = -1, keepdim = True)[0]
+    # range = torch.arange(inputs.shape[0], device=inputs.device)
+    # entropy = - inputs_stable[range, targets] + torch.log(torch.sum(torch.exp(inputs_stable), dim = -1)) 
+    # l = torch.mean(entropy)
 
-    return l
+    # return l
+    return torch.nn.functional.cross_entropy(inputs, targets)
+
 
 class AdamW(torch.optim.Optimizer):
     def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.01):
@@ -104,7 +106,7 @@ def get_batch(
 
     max_idx = len(dataset) - context_length - 1
 
-    ix = torch.randint(0, max_idx + 1, (batch_size,))
+    ix = torch.randint(0, max_idx + 1, (batch_size,), device=device)
 
     x_list = []
     y_list = []
@@ -114,8 +116,8 @@ def get_batch(
         x_list.append(torch.from_numpy(dataset[i : i + context_length].astype(np.int64)))
         y_list.append(torch.from_numpy(dataset[i + 1 : i + context_length + 1].astype(np.int64)))
 
-    x = torch.stack(x_list)
-    y = torch.stack(y_list)
+    x = torch.stack(x_list).to(device)
+    y = torch.stack(y_list).to(device)
 
     return x.to(device), y.to(device)
 
@@ -144,7 +146,8 @@ def load_checkpoint(
     optimizer: torch.optim.Optimizer,
 ) -> int:
 
-    checkpoint = torch.load(src, weights_only=False)
+    device = next(model.parameters()).device
+    checkpoint = torch.load(src, map_location=device, weights_only=False)
     
     model.load_state_dict(checkpoint['model_state_dict'])
     

@@ -33,7 +33,7 @@ def generate(model, prompt_tokens, max_new_tokens, temperature=1.0, top_p=1.0, e
 
     for _ in range(max_new_tokens):
 
-        logits = model(x, rope_theta)
+        logits = model(x)
         next_token_logits = logits[:, -1, :]
 
         if temperature != 1.0:

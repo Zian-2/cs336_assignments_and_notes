@@ -2,6 +2,8 @@ import math
 import torch
 import torch.nn as nn
 from einops import rearrange, einsum
+import torch.nn.functional as F
+
 
 class Linear(nn.Module):
     def __init__(self, in_features, out_features, device=None, dtype=None):
@@ -66,6 +68,7 @@ class SwiGLU(nn.Module):
         SiLU = x1* torch.sigmoid(x1)
         ffn = self.w2(SiLU * x3)
 
+        
         return ffn
     
 
@@ -84,21 +87,25 @@ class RotaryPositionalEmbedding(nn.Module):
 
 
     def forward(self, x: torch.Tensor, token_positions: torch.Tensor) -> torch.Tensor:
-        cos = self.cos[token_positions] 
-        sin = self.sin[token_positions]
+        cos = self.cos[token_positions].unsqueeze(0).unsqueeze(1)
+        sin = self.sin[token_positions].unsqueeze(0).unsqueeze(1)
 
         x_even = x[...,0::2]
         x_odd = x[..., 1::2]
-        x_new_even = x_even * cos - x_odd * sin
-        x_new_odd = x_even * sin + x_odd * cos
+
+        out = torch.empty_like(x)
+        out[..., 0::2] = x_even * cos - x_odd * sin
+        out[..., 1::2] = x_even * sin + x_odd * cos
         
-        return (torch.stack([x_new_even, x_new_odd], dim=-1)).flatten(-2)
+        return out
+
     
 
 def softmax(x: torch.Tensor, dim: int) -> torch.Tensor:
     x_max = torch.max(x, dim=dim, keepdim=True)[0]
     e_x = torch.exp(x - x_max)
     return e_x / torch.sum(e_x, dim=dim, keepdim=True)
+
 
 def scaled_dot_product_attention(Q, K, V, mask=None):
     d_k = Q.shape[-1]
@@ -114,58 +121,56 @@ def scaled_dot_product_attention(Q, K, V, mask=None):
 
 
 class CausalMultiHeadSelfAttention(nn.Module):
-    def __init__(self, d_model: int, num_heads: int):
+    def __init__(self, d_model: int, num_heads: int, device=None, dtype=None):
         super().__init__()
         self.d_model = d_model
         self.num_heads = num_heads
         self.d_k = self.d_k = d_model // num_heads
         
-        self.q_proj = nn.Linear(d_model, d_model, bias=False)
-        self.k_proj = nn.Linear(d_model, d_model, bias=False)
-        self.v_proj = nn.Linear(d_model, d_model, bias=False)
-        self.o_proj = nn.Linear(d_model, d_model, bias=False)
+        self.qkv_proj = nn.Linear(d_model, 3 * d_model, bias=False, device=device)
+        self.o_proj = nn.Linear(d_model, d_model, device=device, bias=False)
+
+        self.rope_cache = None
 
 
-    def forward(self, x: torch.Tensor, rope_theta = None, token_positions = None):
-        seq_len = x.shape[-2]
+    def forward(self, x: torch.Tensor, rope_encoder=None, token_positions = None):
+        B, T, _ = x.shape
         
-        q = rearrange(self.q_proj(x), "... n (h d) -> ... h n d", h=self.num_heads)
-        k = rearrange(self.k_proj(x), "... n (h d) -> ... h n d", h=self.num_heads)
-        v = rearrange(self.v_proj(x), "... n (h d) -> ... h n d", h=self.num_heads)
+        qkv = self.qkv_proj(x) 
+        q, k, v = rearrange(qkv, "b t (qkv h d) -> qkv b h t d", qkv=3, h=self.num_heads)
 
-        if rope_theta is not None:
-            apply_rope = RotaryPositionalEmbedding(rope_theta, self.d_k, seq_len)
-            q = apply_rope(q, token_positions)
-            k = apply_rope(k, token_positions)
-
+        if rope_encoder is not None:
+            q = rope_encoder(q, token_positions)
+            k = rope_encoder(k, token_positions)
         # Causal Mask
-        mask = torch.ones((seq_len, seq_len), device=x.device, dtype=torch.bool)
-        mask = torch.tril(mask) 
+        # mask = torch.ones((T, T), device=x.device, dtype=torch.bool)
+        # mask = torch.tril(mask) 
 
-        values = scaled_dot_product_attention(q, k, v, mask=mask)
+        # values = scaled_dot_product_attention(q, k, v, mask=mask)
+        values = F.scaled_dot_product_attention(q, k, v, is_causal=True)
 
         out = rearrange(values, "... h n d -> ... n (h d)")
         return self.o_proj(out)
     
 
 class TransformerBlock(nn.Module):
-    def __init__(self, d_model: int, num_heads: int, d_ff: int):
+    def __init__(self, d_model: int, num_heads: int, d_ff: int, device=None, dtype=None):
         super().__init__()
 
-        self.ln1 = RMSNorm(d_model)
-        self.attn = CausalMultiHeadSelfAttention(d_model, num_heads)
+        self.ln1 = RMSNorm(d_model, device=device, dtype=dtype)
+        self.attn = CausalMultiHeadSelfAttention(d_model, num_heads, device=device, dtype=dtype)
         
-        self.ln2 = RMSNorm(d_model)
+        self.ln2 = RMSNorm(d_model, device=device, dtype=dtype)
 
-        self.ffn = SwiGLU(d_model, d_ff=d_ff) 
+        self.ffn = SwiGLU(d_model, d_ff=d_ff, device=device, dtype=dtype) 
 
-    def forward(self, x: torch.Tensor, theta: float, positions: torch.Tensor):
+    def forward(self, x: torch.Tensor, rope_encoder, positions: torch.Tensor):
         # ln + residual
         residual = x
         x = self.ln1(x)
 
         # mha(with rope) + residual
-        x = self.attn(x, rope_theta=theta, token_positions=positions)
+        x = self.attn(x, rope_encoder, token_positions=positions)
         x = residual + x
 
         # ln + ffn + residual
@@ -176,13 +181,38 @@ class TransformerBlock(nn.Module):
         
         return x
     
+        # # ln + residual
+        # residual = x
+
+        # # mha(with rope) + residual
+        # x = self.attn(x, rope_encoder, token_positions=positions)
+        # x = residual + x
+
+        # x = self.ln1(x)
+
+        # # ln + ffn + residual
+        # residual = x
+
+        # x = self.ffn(x)
+
+        # x = residual + x
+        # x = self.ln2(x)
+        
+        # return x
+    
 
 class TransformerLM(nn.Module):
-    def __init__(self, vocab_size: int, context_length: int, d_model: int, num_layers: int, num_heads: int, d_ff: int):
+    def __init__(self, vocab_size: int, context_length: int, d_model: int, num_layers: int, num_heads: int, d_ff: int,device=None, dtype=None, rope_theta=10000.0):
         super().__init__()
 
-        self.token_embeddings = Embedding(vocab_size, d_model)
+        self.token_embeddings = Embedding(vocab_size, d_model, device=device, dtype=dtype)
 
+        self.rope_encoder = RotaryPositionalEmbedding(
+            theta=rope_theta, 
+            d_k=d_model // num_heads, 
+            max_seq_len=context_length, 
+            device=device
+        )
 
         self.layers = nn.ModuleList([
             TransformerBlock(d_model, num_heads, d_ff) 
@@ -191,9 +221,9 @@ class TransformerLM(nn.Module):
         
         self.ln_final = RMSNorm(d_model)
         self.lm_head = Linear(d_model, vocab_size)
+        
 
-
-    def forward(self, in_indices: torch.Tensor, theta: float):
+    def forward(self, in_indices: torch.Tensor):
 
         seq_len = in_indices.shape[1]
         positions = torch.arange(seq_len, device=in_indices.device)
@@ -203,12 +233,17 @@ class TransformerLM(nn.Module):
         
         # transformer
         for layer in self.layers:
-            x = layer(x, theta=theta, positions=positions)
+            x = layer(x, self.rope_encoder, positions=positions)
         
         # ln_final
         x = self.ln_final(x)
         
         # affine
+        
         logits = self.lm_head(x)
         
         return logits
+    
+        # fake_logits = torch.randn(x.shape[0], x.shape[1], 50257, 
+        #                          device=x.device, requires_grad=True)
+        # return fake_logits

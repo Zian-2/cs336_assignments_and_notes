@@ -4,12 +4,12 @@ import psutil
 import cProfile
 import pstats
 import time
-from .tokenizer import train_bpe
+from tokenizer import train_bpe
 
 def main():
     # 路径配置
-    input_path = "../data/TinyStoriesV2-GPT4-valid.txt"
-    vocab_size = 10000 
+    input_path = "../../data/TinyStoriesV2-GPT4-train.txt"
+    vocab_size = 50257 
     special_tokens = ["<|endoftext|>"] 
 
     process = psutil.Process(os.getpid())
