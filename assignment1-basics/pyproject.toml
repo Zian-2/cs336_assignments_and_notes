@@ -5,17 +5,20 @@ description = "CS336 Assignment 1"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "einops>=0.8.1", # tensor operations
-    "einx>=0.3.0", # more general tensor operations
-    "jaxtyping>=0.3.0", # type hints for pytorch/jax/numpy
+    "einops>=0.8.1",
+    "einx>=0.3.0",
+    "jaxtyping>=0.3.0",
     "numpy",
     "psutil>=6.1.1",
     "pytest>=8.3.4",
-    "regex>=2024.11.6", # more powerful regex than the builtin `re` module
-    "submitit>=1.5.2", # job submission for SLURM
+    "regex>=2024.11.6",
+    "submitit>=1.5.2",
     "tiktoken>=0.9.0",
-    "torch~=2.6.0; sys_platform != 'darwin' or platform_machine != 'x86_64'",
-    "torch~=2.2.2; sys_platform == 'darwin' and platform_machine == 'x86_64'", # Intel Macs
+    # --- 关键修改：取消 2.6.0 的限制，允许安装页面显示的 2.10.0 ---
+    "torch>=2.10.0", 
+    "torchvision",
+    "torchaudio",
+    # ---------------------------------------------------------
     "tqdm>=4.67.1",
     "wandb>=0.19.7",
     "ty>=0.0.1a16",
@@ -32,6 +35,19 @@ module-root = ""
 [tool.uv]
 package = true
 python-preference = "managed"
+
+[[tool.uv.index]]
+# 更改为正式版索引名
+name = "pytorch-cu130"
+# 更改为正式版 URL
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+# 强制指定这三个包只去 cu130 的正式版路径找
+torch = { index = "pytorch-cu130" }
+torchvision = { index = "pytorch-cu130" }
+torchaudio = { index = "pytorch-cu130" }
 
 [tool.pytest.ini_options]
 log_cli = true

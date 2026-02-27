@@ -1,3 +1,11 @@
 # 忽略整个 .obsidian 文件夹
 cs336_笔记/.obsidian/
+assignment1-basics/run_bpe_train_on_openwebtext_output
+assignment1-basics/cs336_basics/out_10000
+assignment1-basics/cs336_basics/out_best
+assignment1-basics/cs336_basics/out_owt_v1
+assignment1-basics/cs336_basics/wandb
+assignment1-basics/cs336_basics/log
+assignment1-basics/.venv
+assignment5-alignment/.venv
 data
