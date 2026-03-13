@@ -1,0 +1,58 @@
+[project]
+name = "alignment"
+version = "1.0.0"
+description = "CS 336 Spring 2025 Assignment 5: Alignment"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"  # Python 3.13 not yet supported for some deps
+dependencies = [
+    "accelerate>=1.5.2",
+    "alpaca-eval",
+    "flash-attn==2.7.4.post1",
+    "jupyter>=1.1.1",
+    "math-verify[antlr4-13-2]>=0.7.0",
+    "pylatexenc==2.10",
+    "notebook>=7.4.2",
+    "pytest>=8.3.5",
+    "torch>=2.10.0",
+    "torchvision",
+    "torchaudio",
+    "tqdm>=4.67.1",
+    "transformers>=4.50.0",
+    "typer>=0.15.4",
+    "vllm==0.7.2",
+    "wandb>=0.19.8",
+    "xopen>=2.0.2",
+]
+
+[tool.setuptools.packages.find]
+include = ["cs336_alignment"]
+
+[tool.uv]
+package = true
+no-build-isolation-package = ["flash-attn"]
+# --- 核心修改：强制覆盖 vllm 对 torch 的版本要求 ---
+override-dependencies = [
+    "torch>=2.10.0",
+]
+environments = ["sys_platform == 'win32'"]
+
+[[tool.uv.index]]
+# 严格复刻你之前的索引配置
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+alpaca-eval = { git = "https://github.com/nelson-liu/alpaca_eval.git", rev = "forward_kwargs_to_vllm" }
+torch = { index = "pytorch-cu130" }
+torchvision = { index = "pytorch-cu130" }
+torchaudio = { index = "pytorch-cu130" }
+
+[tool.pytest.ini_options]
+log_cli = true
+log_cli_level = "WARNING"
+
+[[tool.uv.dependency-metadata]]
+name = "flash-attn"
+version = "2.7.4.post1"
+requires-dist = ["torch", "einops", "setuptools"]
