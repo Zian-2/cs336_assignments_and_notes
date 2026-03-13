@@ -1,6 +1,6 @@
 本章带你编写Transformer，并且最后带你简单算一遍内存和FLOPs，但不包括训练和生成（在4-6章）。
 
-本文少量mathcal相关的markdown无法被github原生渲染器渲染，你可以选择跳过它们或把此.md文件尝试在其他软件中打开，或直接移步。
+本文少量mathcal相关的markdown无法被github原生渲染器渲染，你可以选择跳过它们或把此.md文件尝试在其他软件中打开，或直接移步 https://zian-2.github.io/Assignment1-basics-chapter3/ 。
 
 本课程对transformer相关的算法本身既不全面也不清楚。如果读者对相关算法并不熟悉，笔者推荐去选择性地完成cs231n中神经网络和transformer相关的作业；内含充足的scaffolding和数学原理内容（主要包括反向传播的推导），能够在带你速通相关算法的同时，让你对这些神经网络的整个过程有更良好的认识。  
 

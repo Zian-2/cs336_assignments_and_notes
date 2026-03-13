@@ -91,7 +91,7 @@ class RotaryPositionalEmbedding(nn.Module):
         sin = self.sin[token_positions].unsqueeze(0).unsqueeze(1)
 
         x_even = x[...,0::2]
-        x_odd = x[..., 1::2]
+        x_odd = x[...,1::2]
 
         out = torch.empty_like(x)
         out[..., 0::2] = x_even * cos - x_odd * sin
